@@ -14,7 +14,7 @@ setup(
     name=pm4pybpmn.__name__,
     version=pm4pybpmn.__version__,
     description=pm4pybpmn.__doc__.strip(),
-    long_description=read_file('README'),
+    long_description=read_file('README.md'),
     author=pm4pybpmn.__author__,
     author_email=pm4pybpmn.__author_email__,
     py_modules=[pm4pybpmn.__name__],
