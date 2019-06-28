@@ -1,0 +1,7 @@
+pm4py
+networkx>=2.2
+bpmn_python==0.0.18
+intervaltree
+lime
+joblib
+pydotplus
