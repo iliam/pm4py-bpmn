@@ -191,16 +191,22 @@ def apply(net, initial_marking, final_marking, parameters=None):
         final_marking)
 
     for trans in net.transitions:
+        this_trans_id = str(uuid.uuid4())
+        this_trans_id_0 = this_trans_id[0]
+        while not this_trans_id_0.isalpha():
+            this_trans_id = str(uuid.uuid4())
+            this_trans_id_0 = this_trans_id[0]
+
         if trans.label is not None:
             if trans in start_trans and len(start_trans) == 1:
                 [task_id, task] = bpmn_graph.add_task_to_diagram(process_id, task_name=trans.label,
-                                                                 node_id=trans.label)
+                                                                 node_id=this_trans_id)
             elif trans in final_trans and len(final_trans) == 1:
                 [task_id, task] = bpmn_graph.add_task_to_diagram(process_id, task_name=trans.label,
-                                                                 node_id=trans.label)
+                                                                 node_id=this_trans_id)
             else:
                 [task_id, task] = bpmn_graph.add_task_to_diagram(process_id, task_name=trans.label,
-                                                                 node_id=trans.label)
+                                                                 node_id=this_trans_id)
             bpmn_transitions_map[trans] = task_id
             elements_correspondence[trans] = task
 
