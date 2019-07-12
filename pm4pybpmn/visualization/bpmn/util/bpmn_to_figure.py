@@ -30,6 +30,7 @@ def bpmn_diagram_to_figure(bpmn_graph, image_format, bpmn_aggreg_statistics=None
 
     g = bpmn_graph.diagram_graph
     graph = pydotplus.Dot()
+    graph.obj_dict['attributes']['bgcolor'] = 'transparent'
     for node in g.nodes(data=True):
         if node[1].get(consts.Consts.type) == consts.Consts.task:
             if str(node[1]) in bpmn_aggreg_statistics and "label" in bpmn_aggreg_statistics[str(node[1])] and "color" in \
