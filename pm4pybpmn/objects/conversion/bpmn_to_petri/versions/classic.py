@@ -61,7 +61,7 @@ def reduce(net):
     return reduce1(net)
 
 
-def remove_unconnected_places(net):
+def remove_unconnected_places(net, sources, targets):
     """
     Remove unconnected places from the Petri net
 
@@ -77,9 +77,10 @@ def remove_unconnected_places(net):
     """
     places = set(net.places)
     for place in places:
-        if (len(place.in_arcs) == 0) and (len(place.out_arcs) == 0):
-            print("unconnected place: " + place.name)
-            net.places.remove(place)
+        if not place in sources and not place in targets:
+            if (len(place.in_arcs) == 0) or (len(place.out_arcs) == 0):
+                print("unconnected place: " + place.name)
+                remove_place(net, place)
     return net
 
 
@@ -126,23 +127,18 @@ def get_initial_marking(net, max_no_comb=4):
     for place in places:
         if len(place.in_arcs) == 0:
             places_wo_input.append(place)
-    places_wo_input = set(places_wo_input)
+    places_wo_input = list(places_wo_input)
 
-    itranscount = 0
     initial_marking = Marking()
 
     if len(places_wo_input) > 1:
         source = PetriNet.Place('petri_source')
         net.places.add(source)
-        for i in range(1, min(len(places_wo_input) + 1, max_no_comb)):
-            comb = findsubsets(places_wo_input, i)
-            for c in comb:
-                itranscount = itranscount + 1
-                htrans = PetriNet.Transition("itrans_" + str(itranscount), None)
-                net.transitions.add(htrans)
-                utils.add_arc_from_to(source, htrans, net)
-                for p in c:
-                    utils.add_arc_from_to(htrans, p, net)
+        for i in range(len(places_wo_input)):
+            htrans = PetriNet.Transition("itrans_" + str(i), None)
+            net.transitions.add(htrans)
+            utils.add_arc_from_to(source, htrans, net)
+            utils.add_arc_from_to(htrans, places_wo_input[i], net)
         initial_marking[source] = 1
     elif len(places_wo_input) == 1:
         places_wo_input = list(places_wo_input)
@@ -173,22 +169,17 @@ def get_final_marking(net, max_no_comb=4):
     for place in places:
         if len(place.out_arcs) == 0:
             places_wo_output.append(place)
-    places_wo_output = set(places_wo_output)
+    places_wo_output = list(places_wo_output)
 
-    ftranscount = 0
     final_marking = Marking()
     if len(places_wo_output) > 1:
         sink = PetriNet.Place('petri_sink')
         net.places.add(sink)
-        for i in range(1, min(len(places_wo_output) + 1, max_no_comb)):
-            comb = findsubsets(places_wo_output, i)
-            for c in comb:
-                ftranscount = ftranscount + 1
-                htrans = PetriNet.Transition("ftrans_" + str(ftranscount), None)
-                net.transitions.add(htrans)
-                utils.add_arc_from_to(htrans, sink, net)
-                for p in c:
-                    utils.add_arc_from_to(p, htrans, net)
+        for i in range(len(places_wo_output)):
+            htrans = PetriNet.Transition("ftrans_" + str(i), None)
+            net.transitions.add(htrans)
+            utils.add_arc_from_to(htrans, sink, net)
+            utils.add_arc_from_to(places_wo_output[i], htrans, net)
         final_marking[sink] = 1
     elif len(places_wo_output) == 1:
         places_wo_output = list(places_wo_output)
@@ -240,6 +231,8 @@ def apply(bpmn_graph, parameters=None):
     el_corr_keys_map = {}
     start_event_subprocess = {}
     end_event_subprocess = {}
+    sources = []
+    targets = []
     # adds nodes
     for node in nodes:
         node_id = node[1]['id']
@@ -255,6 +248,14 @@ def apply(bpmn_graph, parameters=None):
             if not str(node[1]) in inv_elements_correspondence:
                 inv_elements_correspondence[str(node[1])] = []
             inv_elements_correspondence[str(node[1])].append(trans)
+            input_place = PetriNet.Place('it_' + node_id)
+            net.places.add(input_place)
+            output_place = PetriNet.Place('ot_' + node_id)
+            net.places.add(output_place)
+            corresponding_in_nodes[node_id] = [input_place]
+            corresponding_out_nodes[node_id] = [output_place]
+            utils.add_arc_from_to(input_place, trans, net)
+            utils.add_arc_from_to(trans, output_place, net)
         elif "gateway" in node_type:
             if "parallelgateway" in node_type:
                 place = PetriNet.Place('pp_' + node_id)
@@ -326,14 +327,15 @@ def apply(bpmn_graph, parameters=None):
                 corresponding_in_nodes[node_id] = [input_place] * len(node[1]['incoming'])
                 corresponding_out_nodes[node_id] = [output_place] * len(node[1]['outgoing'])
         elif node_type == "startevent":
-            source_place_source = PetriNet.Place(node_id)
+            source_place_source = PetriNet.Place("sourceplacesource_"+str(node_id))
             net.places.add(source_place_source)
+            sources.append(source_place_source)
             corresponding_in_nodes[node_id] = [source_place_source]
             if node_process not in corresponding_in_nodes:
                 corresponding_in_nodes[node_process] = []
             corresponding_in_nodes[node_process].append(source_place_source)
             start_event_subprocess[node_process] = source_place_source
-            if not node_name == "start":
+            if not node_name.lower().startswith("start"):
                 trans = PetriNet.Transition("stt_" + node_id, node_name)
                 net.transitions.add(trans)
                 source_place_target = PetriNet.Place("stp_" + node_id)
@@ -344,14 +346,15 @@ def apply(bpmn_graph, parameters=None):
             else:
                 corresponding_out_nodes[node_id] = [source_place_source]
         elif node_type == "endevent":
-            sink_place_target = PetriNet.Place(node_id)
+            sink_place_target = PetriNet.Place("sinkplacetarget_"+str(node_id))
             net.places.add(sink_place_target)
+            targets.append(sink_place_target)
             corresponding_out_nodes[node_id] = [sink_place_target]
             if node_process not in corresponding_out_nodes:
                 corresponding_out_nodes[node_process] = []
             corresponding_out_nodes[node_process].append(sink_place_target)
             end_event_subprocess[node_process] = sink_place_target
-            if not node_name == "end":
+            if not node_name.lower().startswith("end"):
                 trans = PetriNet.Transition("ett_" + node_id, node_name)
                 net.transitions.add(trans)
                 sink_place_source = PetriNet.Place("etp_" + node_id)
@@ -375,15 +378,6 @@ def apply(bpmn_graph, parameters=None):
             corresponding_out_nodes[node_id] = [output_place]
             utils.add_arc_from_to(input_place, trans, net)
             utils.add_arc_from_to(trans, output_place, net)
-        if "task" in node_type:
-            input_place = PetriNet.Place('it_' + node_id)
-            net.places.add(input_place)
-            output_place = PetriNet.Place('ot_' + node_id)
-            net.places.add(output_place)
-            corresponding_in_nodes[node_id] = [input_place]
-            corresponding_out_nodes[node_id] = [output_place]
-            utils.add_arc_from_to(input_place, trans, net)
-            utils.add_arc_from_to(trans, output_place, net)
 
     flows = bpmn_graph.get_flows()
     for flow in flows:
@@ -394,15 +388,21 @@ def apply(bpmn_graph, parameters=None):
             source_ref] and corresponding_in_nodes[target_ref]:
             trans = PetriNet.Transition(flow_id, None)
             net.transitions.add(trans)
-            source_arc = utils.add_arc_from_to(corresponding_out_nodes[source_ref].pop(0), trans, net)
-            target_arc = utils.add_arc_from_to(trans, corresponding_in_nodes[target_ref].pop(0), net)
+            source_arc = utils.add_arc_from_to(corresponding_out_nodes[source_ref][0], trans, net)
+            target_arc = utils.add_arc_from_to(trans, corresponding_in_nodes[target_ref][0], net)
+            if len(corresponding_out_nodes[source_ref]) > 1:
+                del corresponding_out_nodes[source_ref][0]
+            if len(corresponding_in_nodes[target_ref]) > 1:
+                del corresponding_in_nodes[target_ref][0]
             elements_correspondence[target_arc] = flow
             if not str(flow) in inv_elements_correspondence:
                 inv_elements_correspondence[str(flow[2])] = []
             inv_elements_correspondence[str(flow[2])].append(target_arc)
             inv_elements_correspondence[str(flow[2])].append(source_arc)
+        else:
+            print(flow, source_ref in corresponding_out_nodes, target_ref in corresponding_in_nodes, corresponding_out_nodes[source_ref], corresponding_in_nodes[target_ref])
 
-    net = remove_unconnected_places(net)
+    net = remove_unconnected_places(net, sources, targets)
 
     for el in elements_correspondence:
         el_corr_keys_map[str(el)] = el
