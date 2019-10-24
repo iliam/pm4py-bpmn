@@ -451,4 +451,21 @@ def apply(net, initial_marking, final_marking, parameters=None):
     for el in elements_correspondence:
         el_corr_keys_map[str(el)] = el
 
+
+    removed = True
+    while removed:
+        removed = False
+        nodes = bpmn_graph.diagram_graph.nodes
+        nodes_keys = list(nodes.keys())
+        i = 0
+        while i < len(nodes_keys):
+            node_key = nodes_keys[i]
+            node = nodes[nodes_keys[i]]
+            if node['type'] != 'startEvent' and node['type'] != 'endEvent' and (len(node['incoming']) == 0 or len(node['outgoing']) == 0):
+                bpmn_graph.diagram_graph.remove_node(node_key)
+                del nodes_keys[i]
+                removed = True
+                continue
+            i = i + 1
+
     return bpmn_graph, elements_correspondence, inv_elements_correspondence, el_corr_keys_map
