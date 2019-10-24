@@ -79,7 +79,7 @@ def remove_unconnected_places(net, sources, targets):
     for place in places:
         if not place in sources and not place in targets:
             if (len(place.in_arcs) == 0) or (len(place.out_arcs) == 0):
-                print("unconnected place: " + place.name)
+                #print("unconnected place: " + place.name)
                 remove_place(net, place)
     return net
 
@@ -235,11 +235,16 @@ def apply(bpmn_graph, parameters=None):
     targets = []
     # adds nodes
     for node in nodes:
-        node_id = node[1]['id']
+        node_id = node[1]['id'] if 'id' in node[1] else node[0]
         node_name = node[1]['node_name'].replace("\r", " ").replace("\n", " ").strip() if 'node_name' in node[
             1] else None
-        node_type = node[1]['type'].lower()
-        node_process = node[1]['process']
+        node_type = node[1]['type'].lower() if 'type' in node[1] else ""
+        node_process = node[1]['process'] if 'process' in node[1] else None
+
+        if not "type" in node[1]:
+            # some problem with the importing of inclusive gateways
+            node_type = 'inclusivegateway'
+
         trans = None
         if "task" in node_type:
             trans = PetriNet.Transition(node_id, node_name)
@@ -399,8 +404,6 @@ def apply(bpmn_graph, parameters=None):
                 inv_elements_correspondence[str(flow[2])] = []
             inv_elements_correspondence[str(flow[2])].append(target_arc)
             inv_elements_correspondence[str(flow[2])].append(source_arc)
-        else:
-            print(flow, source_ref in corresponding_out_nodes, target_ref in corresponding_in_nodes, corresponding_out_nodes[source_ref], corresponding_in_nodes[target_ref])
 
     net = remove_unconnected_places(net, sources, targets)
 
