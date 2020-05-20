@@ -135,7 +135,7 @@ def get_initial_marking(net, max_no_comb=4):
         source = PetriNet.Place('petri_source')
         net.places.add(source)
         for i in range(len(places_wo_input)):
-            htrans = PetriNet.Transition("itrans_" + str(i), None)
+            htrans = get_transition("itrans_" + str(i), None)
             net.transitions.add(htrans)
             utils.add_arc_from_to(source, htrans, net)
             utils.add_arc_from_to(htrans, places_wo_input[i], net)
@@ -176,7 +176,7 @@ def get_final_marking(net, max_no_comb=4):
         sink = PetriNet.Place('petri_sink')
         net.places.add(sink)
         for i in range(len(places_wo_output)):
-            htrans = PetriNet.Transition("ftrans_" + str(i), None)
+            htrans = get_transition("ftrans_" + str(i), None)
             net.transitions.add(htrans)
             utils.add_arc_from_to(htrans, sink, net)
             utils.add_arc_from_to(places_wo_output[i], htrans, net)
@@ -186,6 +186,12 @@ def get_final_marking(net, max_no_comb=4):
         final_marking[places_wo_output[0]] = 1
 
     return net, final_marking
+
+
+def get_transition(name, label):
+    if label is None or len(label) == 0:
+        return PetriNet.Transition(name, None)
+    return PetriNet.Transition(name, label)
 
 
 def apply(bpmn_graph, parameters=None):
@@ -247,7 +253,7 @@ def apply(bpmn_graph, parameters=None):
 
         trans = None
         if "task" in node_type:
-            trans = PetriNet.Transition(node_id, node_name)
+            trans = get_transition(node_id, node_name)
             net.transitions.add(trans)
             elements_correspondence[trans] = node[1]
             if not str(node[1]) in inv_elements_correspondence:
@@ -267,7 +273,7 @@ def apply(bpmn_graph, parameters=None):
                 net.places.add(place)
                 corresponding_in_nodes[node_id] = []
                 corresponding_out_nodes[node_id] = []
-                htrans = PetriNet.Transition(str(uuid.uuid4()), None)
+                htrans = get_transition(str(uuid.uuid4()), None)
                 net.transitions.add(htrans)
                 utils.add_arc_from_to(htrans, place, net)
                 for edge in node[1]['incoming']:
@@ -276,7 +282,7 @@ def apply(bpmn_graph, parameters=None):
                     net.places.add(hplace)
                     utils.add_arc_from_to(hplace, htrans, net)
                     corresponding_in_nodes[node_id].append(hplace)
-                htrans = PetriNet.Transition(str(uuid.uuid4()), None)
+                htrans = get_transition(str(uuid.uuid4()), None)
                 net.transitions.add(htrans)
                 utils.add_arc_from_to(place, htrans, net)
                 for edge in node[1]['outgoing']:
@@ -299,7 +305,7 @@ def apply(bpmn_graph, parameters=None):
                 for i in range(1, len(added_places_input)+1):
                     subsets = findsubsets(set(added_places_input), i)
                     for subset in subsets:
-                        htrans = PetriNet.Transition(str(uuid.uuid4()), None)
+                        htrans = get_transition(str(uuid.uuid4()), None)
                         net.transitions.add(htrans)
                         utils.add_arc_from_to(htrans, input_place, net)
                         for place in subset:
@@ -315,7 +321,7 @@ def apply(bpmn_graph, parameters=None):
                 for i in range(1, len(added_places_output)+1):
                     subsets = findsubsets(set(added_places_output), i)
                     for subset in subsets:
-                        htrans = PetriNet.Transition(str(uuid.uuid4()), None)
+                        htrans = get_transition(str(uuid.uuid4()), None)
                         net.transitions.add(htrans)
                         utils.add_arc_from_to(input_place, htrans, net)
                         for place in subset:
@@ -325,7 +331,7 @@ def apply(bpmn_graph, parameters=None):
                 net.places.add(input_place)
                 output_place = PetriNet.Place('o_' + node_id)
                 net.places.add(output_place)
-                trans = PetriNet.Transition(node_id, None)
+                trans = get_transition(node_id, None)
                 net.transitions.add(trans)
                 utils.add_arc_from_to(input_place, trans, net)
                 utils.add_arc_from_to(trans, output_place, net)
@@ -341,7 +347,7 @@ def apply(bpmn_graph, parameters=None):
             corresponding_in_nodes[node_process].append(source_place_source)
             start_event_subprocess[node_process] = source_place_source
             if not node_name.lower().startswith("start"):
-                trans = PetriNet.Transition("stt_" + node_id, node_name)
+                trans = get_transition("stt_" + node_id, node_name)
                 net.transitions.add(trans)
                 source_place_target = PetriNet.Place("stp_" + node_id)
                 net.places.add(source_place_target)
@@ -360,7 +366,7 @@ def apply(bpmn_graph, parameters=None):
             corresponding_out_nodes[node_process].append(sink_place_target)
             end_event_subprocess[node_process] = sink_place_target
             if not node_name.lower().startswith("end"):
-                trans = PetriNet.Transition("ett_" + node_id, node_name)
+                trans = get_transition("ett_" + node_id, node_name)
                 net.transitions.add(trans)
                 sink_place_source = PetriNet.Place("etp_" + node_id)
                 net.places.add(sink_place_source)
@@ -375,9 +381,9 @@ def apply(bpmn_graph, parameters=None):
             output_place = PetriNet.Place('o_' + node_id)
             net.places.add(output_place)
             if not node_id == node_name:
-                trans = PetriNet.Transition(node_id, node_name)
+                trans = get_transition(node_id, node_name)
             else:
-                trans = PetriNet.Transition(node_id, None)
+                trans = get_transition(node_id, None)
             net.transitions.add(trans)
             corresponding_in_nodes[node_id] = [input_place]
             corresponding_out_nodes[node_id] = [output_place]
@@ -391,7 +397,7 @@ def apply(bpmn_graph, parameters=None):
         target_ref = flow[2]['targetRef']
         if source_ref in corresponding_out_nodes and target_ref in corresponding_in_nodes and corresponding_out_nodes[
             source_ref] and corresponding_in_nodes[target_ref]:
-            trans = PetriNet.Transition(flow_id, None)
+            trans = get_transition(flow_id, None)
             net.transitions.add(trans)
             source_arc = utils.add_arc_from_to(corresponding_out_nodes[source_ref][0], trans, net)
             target_arc = utils.add_arc_from_to(trans, corresponding_in_nodes[target_ref][0], net)
